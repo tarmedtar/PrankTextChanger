@@ -16,8 +16,8 @@ class MainActivity : Activity() {
         val root = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; setPadding(28, 32, 28, 24) }
         root.addView(TextView(this).apply { text = "Prank Text Changer"; textSize = 26f; setPadding(0,0,0,12) })
         root.addView(TextView(this).apply { text = "أضف عبارة تريد استبدالها بعبارة أخرى. سيظهر البديل كطبقة مرئية فوق النص المطابق في التطبيقات التي تسمح بعرض النصوص." ; textSize=15f })
-        val old = EditText(this).apply { hint = "النص الأصلي"; singleLine = true }
-        val replacement = EditText(this).apply { hint = "النص البديل"; singleLine = true }
+        val old = EditText(this).apply { hint = "النص الأصلي"; setSingleLine(true) }
+        val replacement = EditText(this).apply { hint = "النص البديل"; setSingleLine(true) }
         root.addView(old); root.addView(replacement)
         root.addView(Button(this).apply {
             text = "إضافة قاعدة"
