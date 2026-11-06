@@ -1,49 +1,75 @@
 package com.tarmedtar.pranktextchanger
 
 import android.app.Activity
-import android.content.Intent
+import android.content.ClipData
+import android.content.ClipboardManager
+import android.content.Context
 import android.os.Bundle
-import android.provider.Settings
-import android.view.Gravity
 import android.view.ViewGroup
 import android.widget.*
 
 class MainActivity : Activity() {
-    private val prefs by lazy { getSharedPreferences("rules", MODE_PRIVATE) }
-    private lateinit var list: LinearLayout
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        val root = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; setPadding(28, 32, 28, 24) }
-        root.addView(TextView(this).apply { text = "Prank Text Changer"; textSize = 26f; setPadding(0,0,0,12) })
-        root.addView(TextView(this).apply { text = "أضف عبارة تريد استبدالها بعبارة أخرى. سيظهر البديل كطبقة مرئية فوق النص المطابق في التطبيقات التي تسمح بعرض النصوص." ; textSize=15f })
-        val old = EditText(this).apply { hint = "النص الأصلي"; setSingleLine(true) }
-        val replacement = EditText(this).apply { hint = "النص البديل"; setSingleLine(true) }
-        root.addView(old); root.addView(replacement)
+        val pad = (18 * resources.displayMetrics.density).toInt()
+        val root = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(pad, pad, pad, pad)
+        }
+        fun label(value: String, size: Float = 16f) {
+            root.addView(TextView(this).apply { text = value; textSize = size; setPadding(0, pad / 2, 0, pad / 3) })
+        }
+        fun field(hintText: String, multiline: Boolean = false): EditText {
+            return EditText(this).apply {
+                hint = hintText
+                if (multiline) {
+                    minLines = 4
+                    gravity = android.view.Gravity.TOP
+                    inputType = android.text.InputType.TYPE_CLASS_TEXT or android.text.InputType.TYPE_TEXT_FLAG_MULTI_LINE or android.text.InputType.TYPE_TEXT_FLAG_CAP_SENTENCES
+                } else {
+                    setSingleLine(true)
+                }
+            }
+        }
+        label("مغيّر النصوص", 26f)
+        label("غيّر أي عبارة داخل النص الذي تلصقه هنا، ثم انسخ النتيجة.")
+        label("النص الذي تريد تعديله")
+        val source = field("الصق النص هنا…", true)
+        root.addView(source, ViewGroup.LayoutParams(-1, ViewGroup.LayoutParams.WRAP_CONTENT))
+        label("ابحث عن العبارة")
+        val find = field("العبارة الأصلية")
+        root.addView(find)
+        label("استبدلها بـ")
+        val replacement = field("العبارة الجديدة")
+        root.addView(replacement)
+        val result = field("ستظهر النتيجة هنا…", true).apply { isFocusable = false; isCursorVisible = false }
         root.addView(Button(this).apply {
-            text = "إضافة قاعدة"
+            text = "تغيير النص"
             setOnClickListener {
-                val a = old.text.toString().trim(); val b = replacement.text.toString().trim()
-                if (a.isEmpty() || b.isEmpty()) { Toast.makeText(this@MainActivity, "أدخل النصين أولاً", Toast.LENGTH_SHORT).show(); return@setOnClickListener }
-                prefs.edit().putString(a, b).apply(); old.text.clear(); replacement.text.clear(); renderRules()
-                Toast.makeText(this@MainActivity, "تمت إضافة القاعدة", Toast.LENGTH_SHORT).show()
+                val old = find.text.toString()
+                if (old.isBlank()) {
+                    Toast.makeText(this@MainActivity, "اكتب العبارة التي تريد استبدالها", Toast.LENGTH_SHORT).show()
+                } else {
+                    result.setText(source.text.toString().replace(old, replacement.text.toString(), ignoreCase = false))
+                }
             }
         })
-        root.addView(Button(this).apply { text = "تفعيل خدمة تغيير النصوص"; setOnClickListener { startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS)) } })
-        root.addView(TextView(this).apply { text = "فعّل خدمة Prank Text Changer من إعدادات إمكانية الوصول. يمكنك إيقافها في أي وقت من المكان نفسه."; textSize=13f })
-        root.addView(TextView(this).apply { text = "قواعد الاستبدال"; textSize=20f; setPadding(0,20,0,8) })
-        list = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
-        root.addView(list, ViewGroup.LayoutParams(-1, 0).apply { height = ViewGroup.LayoutParams.WRAP_CONTENT })
+        label("النص بعد التغيير")
+        root.addView(result, ViewGroup.LayoutParams(-1, ViewGroup.LayoutParams.WRAP_CONTENT))
+        root.addView(Button(this).apply {
+            text = "نسخ النتيجة"
+            setOnClickListener {
+                val value = result.text.toString()
+                if (value.isEmpty()) {
+                    Toast.makeText(this@MainActivity, "لا توجد نتيجة لنسخها", Toast.LENGTH_SHORT).show()
+                } else {
+                    val clipboard = getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+                    clipboard.setPrimaryClip(ClipData.newPlainText("النص المعدل", value))
+                    Toast.makeText(this@MainActivity, "تم نسخ النص", Toast.LENGTH_SHORT).show()
+                }
+            }
+        })
+        label("تعمل هذه النسخة على النص الذي تلصقه داخل التطبيق فقط، ولا تقرأ محتوى التطبيقات الأخرى.")
         setContentView(ScrollView(this).apply { addView(root) })
-        renderRules()
-    }
-    private fun renderRules() {
-        list.removeAllViews()
-        for ((from, to) in prefs.all) {
-            val row = LinearLayout(this).apply { gravity = Gravity.CENTER_VERTICAL }
-            row.addView(TextView(this).apply { text = "$from  ←  $to"; textSize = 15f }, LinearLayout.LayoutParams(0, -2, 1f))
-            row.addView(Button(this).apply { text = "حذف"; setOnClickListener { prefs.edit().remove(from).apply(); renderRules() } })
-            list.addView(row)
-        }
-        if (prefs.all.isEmpty()) list.addView(TextView(this).apply { text = "لا توجد قواعد بعد." })
     }
 }
