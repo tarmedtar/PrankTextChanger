@@ -12,6 +12,7 @@ public class DrawingOverlayService extends Service {
     private WindowManager wm;
     private DrawView drawing;
     private LinearLayout tools;
+    private View toolbarWindow;
     private WindowManager.LayoutParams drawingParams;
     private int color = Color.RED;
     private float strokeWidth = 8f;
@@ -29,28 +30,34 @@ public class DrawingOverlayService extends Service {
         wm.addView(drawing, drawingParams);
 
         HorizontalScrollView scroll = new HorizontalScrollView(this);
+        toolbarWindow = scroll;
         scroll.setHorizontalScrollBarEnabled(false);
         scroll.setBackgroundColor(0xEE222222);
         tools = new LinearLayout(this);
         tools.setOrientation(LinearLayout.HORIZONTAL);
         scroll.addView(tools);
+
         add("رسم", () -> setDrawingMode(true));
         add("تفاعل", () -> setDrawingMode(false));
-        add("أحمر", () -> { color = Color.RED; });
-        add("أزرق", () -> { color = Color.BLUE; });
-        add("أسود", () -> { color = Color.BLACK; });
+        add("أحمر", () -> color = Color.RED);
+        add("أزرق", () -> color = Color.BLUE);
+        add("أخضر", () -> color = Color.GREEN);
+        add("أسود", () -> color = Color.BLACK);
+        add("أصفر", () -> color = Color.YELLOW);
         add("ممحاة", () -> { color = Color.TRANSPARENT; strokeWidth = 28f; });
-        add("سُمك +", () -> { strokeWidth = Math.min(36f, strokeWidth + 3f); });
-        add("سُمك -", () -> { strokeWidth = Math.max(2f, strokeWidth - 3f); });
+        add("سُمك +", () -> strokeWidth = Math.min(36f, strokeWidth + 3f));
+        add("سُمك -", () -> strokeWidth = Math.max(2f, strokeWidth - 3f));
         add("تراجع", () -> drawing.undo());
         add("مسح الكل", () -> drawing.clear());
         add("إخفاء", () -> drawing.setVisibility(View.GONE));
         add("إظهار", () -> drawing.setVisibility(View.VISIBLE));
+        add("إيقاف", () -> stopSelf());
+
         WindowManager.LayoutParams barParams = new WindowManager.LayoutParams(
             -1, -2, WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY,
             WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE, PixelFormat.TRANSLUCENT);
         barParams.gravity = Gravity.TOP | Gravity.CENTER_HORIZONTAL;
-        wm.addView(scroll, barParams);
+        wm.addView(toolbarWindow, barParams);
         setDrawingMode(true);
     }
 
@@ -70,6 +77,7 @@ public class DrawingOverlayService extends Service {
     }
 
     @Override public void onDestroy() {
+        if (toolbarWindow != null) wm.removeView(toolbarWindow);
         if (drawing != null) wm.removeView(drawing);
         super.onDestroy();
     }
@@ -132,13 +140,18 @@ public class DrawingOverlayService extends Service {
         void undo() {
             if (!paths.isEmpty()) {
                 int last = paths.size() - 1;
-                paths.remove(last); colors.remove(last); widths.remove(last);
+                paths.remove(last);
+                colors.remove(last);
+                widths.remove(last);
                 invalidate();
             }
         }
 
         void clear() {
-            paths.clear(); colors.clear(); widths.clear(); current = null;
+            paths.clear();
+            colors.clear();
+            widths.clear();
+            current = null;
             invalidate();
         }
     }
